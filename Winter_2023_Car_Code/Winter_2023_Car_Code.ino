@@ -1,19 +1,7 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include <SPI.h>
-
-#define CHIP 0x40       // The chip's address (set by pins 4 & 5)
-#define CHIP_READ 0x41
-#define IO_DIR_REG 0x00 // The Input/Output Register
-#define GPIO_REG 0x09   // The GPIO Register
-#define GPPU_REG  0x06
-
-#define EX_PIN 9 
-#define POT_PIN 10
-#define AccPotSig A6
-#define BrakeSig 6
-#define CONTACTOR_OUT 17
-#define CRUISE_PIN 7
+#include "Constants.h"
 
 byte PortExByte;
 
@@ -23,12 +11,13 @@ bool brake_raw = 0;
 int digi_pot_val = 0;
 int throttle_percent = 0;
 bool main_power = 0;
-bool cruise_val = 0;
 
 void setup() {
-  // put your setup code here, to run once:
+  //Begin debugging serial port
   Serial.begin(9600);
+  //Begin the SPI for port expander and digital potentiometer
   spi_setup();
+  //Safeguard the contactor states on first power-up
   pinMode(CONTACTOR_OUT, OUTPUT);
   digitalWrite(CONTACTOR_OUT, LOW);
 }
@@ -52,9 +41,7 @@ void read_inputs() {
   Serial.print(accel_pot_raw);
   Serial.print(" ");
 
-  cruise_val = digitalRead(CRUISE_PIN);
-
-  Reads Main Power switch, In this case Spare1 on the Interface Control Board
+  // Reads Main Power switch, In this case Spare1 on the Interface Control Board
   if((PortExByte & 0b01000000)==0b01000000){
     main_power = 1;
     Serial.print("Main Power On ");
@@ -83,7 +70,7 @@ void move_car() {
 
   if(!brake_raw){
     digi_pot_val = calculate_digi_pot(accel_pot_raw);
-    DigiPotWrite(digi_pot_val);//writes acceleration value value to digital pot
+    DigiPotWrite(digi_pot_val);//writes acceleration value to digital potentiometer
   }
   Serial.print("DigiPot value: ");
   Serial.print(digi_pot_val);
@@ -91,17 +78,12 @@ void move_car() {
 }
 
 int calculate_digi_pot(float accel) {
-  //brings steering pot value to an int between 0 and 255, adjusts input for limited range of pot. should be between 475 and 875
-  digi_pot_val = int(round(((accel_pot_raw-475)/400)*255));
-  if(digi_pot_val < 0){
-    digi_pot_val = 0;
-  }
-  if(digi_pot_val > 255){
-    digi_pot_val = 255;
-  }
+  //converts the acceleration potentionmeter value (between 475 and 875) to a 0-255 range for SPI, and flips it because of the potentiometer mounting
+  digi_pot_val = int(map(accel_pot_raw, 475, 875, 255, 0));
 
-  //flips the value, otherwise the car would be at full throttle when the throttle is released
-  digi_pot_val = abs(digi_pot_val- 255);
+  //truncate the value to between 0 and 255
+  digi_pot_val = max(digi_pot_val, 0);
+  digi_pot_val = min(digi_pot_val, 255);
 
   return digi_pot_val;
 }
@@ -118,9 +100,9 @@ byte SPIRead(byte address){
   digitalWrite(EX_PIN,LOW);
   SPI.transfer(CHIP_READ);
   SPI.transfer(address);
-  byte retVal = SPI.transfer(0x00);
+  byte retrieved_Val = SPI.transfer(0x00);
   digitalWrite(EX_PIN,HIGH);
-  return retVal;
+  return retrieved_Val;
 }
 
 void spi_setup() {
