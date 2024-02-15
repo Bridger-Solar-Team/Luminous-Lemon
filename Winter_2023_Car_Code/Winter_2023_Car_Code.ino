@@ -11,6 +11,10 @@ bool brake_raw = 0;
 int digi_pot_val = 0;
 int throttle_percent = 0;
 bool main_power = 0;
+bool left_turn_raw = 0;
+bool right_turn_raw = 0;
+bool cruise_raw = 0;
+
 
 void setup() {
   //Begin debugging serial port
@@ -20,6 +24,9 @@ void setup() {
   //Safeguard the contactor states on first power-up
   pinMode(CONTACTOR_OUT, OUTPUT);
   digitalWrite(CONTACTOR_OUT, LOW);
+  pinMode(LeftSig, INPUT_PULLUP);
+  pinMode(RightSig, INPUT_PULLUP);
+  pinMode(CruiseSig, INPUT_PULLUP);
 }
 
 void loop() {
@@ -56,6 +63,26 @@ void read_inputs() {
   if(brake_raw) {
     Serial.print("Brake Engaged ");
   }
+
+  left_turn_raw = digitalRead(LeftSig);
+  right_turn_raw = digitalRead(RightSig);
+
+  if(!right_turn_raw) {
+    Serial.print("Turning Right! ");
+  }
+  else if(!left_turn_raw) {
+    Serial.print("Turning Left! ");
+  }
+  else {
+    Serial.print("Going Straight! ");
+  }
+
+  cruise_raw = digitalRead(CruiseSig);
+  if(!cruise_raw) {
+    Serial.print("Cruizin! ");
+  } else {
+    Serial.print("Manual Throttle. ");
+  }
 }
 
 void move_car() {
@@ -79,6 +106,9 @@ void move_car() {
 
 int calculate_digi_pot(float accel) {
   //converts the acceleration potentionmeter value (between 475 and 875) to a 0-255 range for SPI, and flips it because of the potentiometer mounting
+  if(digi_pot_val < 50) {
+    digi_pot_val = ACCEL_ZERO_POSITION;
+  }
   digi_pot_val = int(map(accel_pot_raw, ACCEL_MAX_POSITION, ACCEL_ZERO_POSITION, 255, 0));
 
   //truncate the value to between 0 and 255
