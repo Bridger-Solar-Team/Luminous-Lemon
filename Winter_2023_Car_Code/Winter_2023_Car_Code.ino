@@ -40,7 +40,7 @@ void loop() {
   // run_lights();
   // update_display();
   // send_telemetry();
-  debug();
+  debug(); //Comment this out to disable printing debug values
 }
 
 void debug() {
@@ -171,11 +171,13 @@ byte SPIRead(byte address){
 }
 
 void SPIWrite(byte spiRegister, byte value){
+  SPI.beginTransaction(SPISettings(10000000, MSBFIRST , SPI_MODE1));
   digitalWrite(EX_PIN,LOW);
   SPI.transfer(CHIP_WRITE);
   SPI.transfer(spiRegister);
   SPI.transfer(value);
   digitalWrite(EX_PIN,HIGH);
+  SPI.endTransaction();
 }
 
 void spi_setup() {
