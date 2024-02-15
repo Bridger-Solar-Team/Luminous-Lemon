@@ -6,7 +6,7 @@
 byte PortExByte;
 
 float accel_pot_raw = 0;
-bool hazard_val = 1;
+bool hazard_val = 0;
 bool brake_raw = 0;
 int digi_pot_val = 0;
 int throttle_percent = 0;
@@ -14,6 +14,8 @@ bool main_power = 0;
 bool left_turn_raw = 0;
 bool right_turn_raw = 0;
 bool cruise_raw = 0;
+bool hazard_raw = 0;
+bool display_tog_raw = 0;
 
 
 void setup() {
@@ -26,11 +28,12 @@ void setup() {
   digitalWrite(CONTACTOR_OUT, LOW);
   pinMode(LeftSig, INPUT_PULLUP);
   pinMode(RightSig, INPUT_PULLUP);
-  pinMode(CruiseSig, INPUT_PULLUP);
+  pinMode(CRUISE_PIN, INPUT_PULLUP);
+  pinMode(DisplayTogSig, INPUT);
 }
 
 void loop() {
-  read_inputs();
+  read_inputs(); //TODO(debug): hazzard & display_toggle
   move_car();
   // run_lights();
   // update_display();
@@ -39,7 +42,7 @@ void loop() {
 }
 
 void read_inputs() {
-  //Read port expander
+  //Read port expander (Currently not working)
   PortExByte = SPIRead(GPIO_REG);
 
   //takes in signal from potentionmeter on steering wheel
@@ -51,38 +54,58 @@ void read_inputs() {
   // Reads Main Power switch, In this case Spare1 on the Interface Control Board
   if((PortExByte & 0b01000000)==0b01000000){
     main_power = 1;
-    Serial.print("Main Power On ");
+    Serial.print("Main_Power_On ");
   }
   else{
     main_power = 0;
-    Serial.print("Main Power Off ");
+    Serial.print("Main_Power_Off ");
   } 
 
   //Reads the brake signal, high if brake is pressed(i assume) - Tristan, 12/6/2023
   brake_raw = digitalRead(BrakeSig);
   if(brake_raw) {
-    Serial.print("Brake Engaged ");
+    Serial.print("Brake_Engaged ");
   }
 
+  //Left and right turn signals
   left_turn_raw = digitalRead(LeftSig);
   right_turn_raw = digitalRead(RightSig);
 
   if(!right_turn_raw) {
-    Serial.print("Turning Right! ");
+    Serial.print("Turning_Right! ");
   }
   else if(!left_turn_raw) {
-    Serial.print("Turning Left! ");
-  }
-  else {
-    Serial.print("Going Straight! ");
+    Serial.print("Turning_Left! ");
   }
 
-  cruise_raw = digitalRead(CruiseSig);
+  //Cruise control button (it's inverted, so out is true and in is false)
+  cruise_raw = digitalRead(CRUISE_PIN);
   if(!cruise_raw) {
     Serial.print("Cruizin! ");
-  } else {
-    Serial.print("Manual Throttle. ");
   }
+
+  //TODO (Does not work)
+  // display_tog_raw = digitalRead(DisplayTogSig);
+  // if(display_tog_raw) {
+  //   Serial.print("get_TOGGLED! ");
+  // }
+
+  //TODO (Does Not Work)
+  // if((PortExByte & 0b10000000) == 0b10000000){//Reads hazard value 
+  //   hazard_raw = 1;
+  // } 
+  // else {
+  //   hazard_raw = 0;
+  // }
+
+  // if(hazard_raw) {
+  //   Serial.print("Hazards! ");
+  // } 
+  // else {
+  //   Serial.print("No hazards. ");
+  // }
+
+
 }
 
 void move_car() {
@@ -99,9 +122,6 @@ void move_car() {
     digi_pot_val = calculate_digi_pot(accel_pot_raw);
     DigiPotWrite(digi_pot_val);//writes acceleration value to digital potentiometer
   }
-  Serial.print("DigiPot value: ");
-  Serial.print(digi_pot_val);
-  Serial.print(" ");
 }
 
 int calculate_digi_pot(float accel) {
@@ -132,6 +152,9 @@ byte SPIRead(byte address){
   SPI.transfer(address);
   byte retrieved_Val = SPI.transfer(0x00);
   digitalWrite(EX_PIN,HIGH);
+  Serial.print("Expander: ");
+  Serial.print(retrieved_Val);
+  Serial.print(". ");
   return retrieved_Val;
 }
 

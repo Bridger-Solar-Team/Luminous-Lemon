@@ -12,7 +12,7 @@
 #define CRUISE_PIN 7
 #define LeftSig 4
 #define RightSig 5
-#define CruiseSig 7
+#define DisplayTogSig 8
 
 #define ACCEL_ZERO_POSITION 350
 #define ACCEL_MAX_POSITION 170
