@@ -159,11 +159,13 @@ void DigiPotWrite(int value){
 }
 
 byte SPIRead(byte address){
+  SPI.beginTransaction(SPISettings(10000000, MSBFIRST, SPI_MODE1));
   digitalWrite(EX_PIN,LOW);
   SPI.transfer(CHIP_READ);
   SPI.transfer(address);
   byte retrieved_Val = SPI.transfer(0x00);
   digitalWrite(EX_PIN,HIGH);
+  SPI.endTransaction();
   Serial.print("Expander: ");
   Serial.print(retrieved_Val);
   Serial.print(". ");
@@ -171,7 +173,7 @@ byte SPIRead(byte address){
 }
 
 void SPIWrite(byte spiRegister, byte value){
-  SPI.beginTransaction(SPISettings(10000000, MSBFIRST , SPI_MODE1));
+  SPI.beginTransaction(SPISettings(10000000, MSBFIRST, SPI_MODE1));
   digitalWrite(EX_PIN,LOW);
   SPI.transfer(CHIP_WRITE);
   SPI.transfer(spiRegister);
