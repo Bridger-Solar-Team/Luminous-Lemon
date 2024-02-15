@@ -6,10 +6,12 @@
 byte PortExByte;
 
 float accel_pot_raw = 0;
-bool hazard_val = 0;
-bool brake_raw = 0;
+
 int digi_pot_val = 0;
 int throttle_percent = 0;
+
+bool hazard_val = 0;
+bool brake_raw = 0;
 bool main_power = 0;
 bool left_turn_raw = 0;
 bool right_turn_raw = 0;
@@ -26,10 +28,10 @@ void setup() {
   //Safeguard the contactor states on first power-up
   pinMode(CONTACTOR_OUT, OUTPUT);
   digitalWrite(CONTACTOR_OUT, LOW);
-  pinMode(LeftSig, INPUT_PULLUP);
-  pinMode(RightSig, INPUT_PULLUP);
+  pinMode(LEFT_TURN_SIGNAL_PIN, INPUT_PULLUP);
+  pinMode(RIGHT_TURN_SIGNAL_PIN, INPUT_PULLUP);
   pinMode(CRUISE_PIN, INPUT_PULLUP);
-  pinMode(DisplayTogSig, INPUT);
+  pinMode(DISPLAY_TOG_SIGNAL_PIN, INPUT);
 }
 
 void loop() {
@@ -38,7 +40,49 @@ void loop() {
   // run_lights();
   // update_display();
   // send_telemetry();
-  Serial.println();
+  debug();
+}
+
+void debug() {
+  Serial.print("Acceleration pot: ");
+  Serial.print(accel_pot_raw);
+  Serial.print(" ");
+
+  if(main_power) {
+    Serial.print("Main_Power_On ");
+  }
+  else {
+    Serial.print("Main_Power_Off ");
+  }
+
+  if(brake_raw) {
+    Serial.print("Brake_Engaged ");
+  }
+  
+  if(!right_turn_raw) {
+    Serial.print("Turning_Right! ");
+  }
+  else if(!left_turn_raw) {
+    Serial.print("Turning_Left! ");
+  }
+  
+  if(!cruise_raw) {
+    Serial.print("Cruizin! ");
+  }
+  
+  if(main_power) {
+    Serial.print("Contactors Powered! ");
+  } else {
+    Serial.print("Contactors Unpowered ");
+  }
+
+  if(display_tog_raw) {
+    Serial.print("get_TOGGLED! ");
+  }
+  
+  if(hazard_raw) {
+    Serial.print("Hazards! ");
+  } 
 }
 
 void read_inputs() {
@@ -46,49 +90,28 @@ void read_inputs() {
   PortExByte = SPIRead(GPIO_REG);
 
   //takes in signal from potentionmeter on steering wheel
-  accel_pot_raw = analogRead(AccPotSig); 
-  Serial.print("Acceleration pot: ");
-  Serial.print(accel_pot_raw);
-  Serial.print(" ");
+  accel_pot_raw = analogRead(ACC_POT_PIN); 
 
   // Reads Main Power switch, In this case Spare1 on the Interface Control Board
   if((PortExByte & 0b01000000)==0b01000000){
     main_power = 1;
-    Serial.print("Main_Power_On ");
   }
-  else{
+  else {
     main_power = 0;
-    Serial.print("Main_Power_Off ");
   } 
 
   //Reads the brake signal, high if brake is pressed(i assume) - Tristan, 12/6/2023
-  brake_raw = digitalRead(BrakeSig);
-  if(brake_raw) {
-    Serial.print("Brake_Engaged ");
-  }
+  brake_raw = digitalRead(BRAKE_PIN);
 
   //Left and right turn signals
-  left_turn_raw = digitalRead(LeftSig);
-  right_turn_raw = digitalRead(RightSig);
-
-  if(!right_turn_raw) {
-    Serial.print("Turning_Right! ");
-  }
-  else if(!left_turn_raw) {
-    Serial.print("Turning_Left! ");
-  }
+  left_turn_raw = digitalRead(LEFT_TURN_SIGNAL_PIN);
+  right_turn_raw = digitalRead(RIGHT_TURN_SIGNAL_PIN);
 
   //Cruise control button (it's inverted, so out is true and in is false)
   cruise_raw = digitalRead(CRUISE_PIN);
-  if(!cruise_raw) {
-    Serial.print("Cruizin! ");
-  }
 
   //TODO (Does not work)
-  // display_tog_raw = digitalRead(DisplayTogSig);
-  // if(display_tog_raw) {
-  //   Serial.print("get_TOGGLED! ");
-  // }
+  // display_tog_raw = digitalRead(DISPLAY_TOG_SIGNAL_PIN);
 
   //TODO (Does Not Work)
   // if((PortExByte & 0b10000000) == 0b10000000){//Reads hazard value 
@@ -97,25 +120,14 @@ void read_inputs() {
   // else {
   //   hazard_raw = 0;
   // }
-
-  // if(hazard_raw) {
-  //   Serial.print("Hazards! ");
-  // } 
-  // else {
-  //   Serial.print("No hazards. ");
-  // }
-
-
 }
 
 void move_car() {
   //Turn on contactors if main power switch is on
   if(main_power) {
     digitalWrite(CONTACTOR_OUT, HIGH);
-    Serial.print("Contactors Powered! ");
   } else {
     digitalWrite(CONTACTOR_OUT, LOW);
-    Serial.print("Contactors Unpowered ");
   }
 
   if(!brake_raw){
@@ -158,6 +170,14 @@ byte SPIRead(byte address){
   return retrieved_Val;
 }
 
+void SPIWrite(byte spiRegister, byte value){
+  digitalWrite(EX_PIN,LOW);
+  SPI.transfer(CHIP_WRITE);
+  SPI.transfer(spiRegister);
+  SPI.transfer(value);
+  digitalWrite(EX_PIN,HIGH);
+}
+
 void spi_setup() {
   //DigiPot SPI setup
   pinMode(POT_PIN,OUTPUT);
@@ -165,18 +185,11 @@ void spi_setup() {
 
   //Port expander SPI setup
   pinMode(EX_PIN, OUTPUT);
-  digitalWrite(EX_PIN,HIGH);
-  delay(100);
+  digitalWrite(EX_PIN, HIGH);
+  delay(100);                      //This may cause issues?
   SPI.begin();
-  SPIWrite(IO_DIR_REG,0b11111110); // Set pins 1-7 as INPUT, pin 0 as OUTPUT
-  SPIWrite(GPIO_REG,0x00);         // Sets pin 0 to low
-  SPIWrite(GPPU_REG,0b11111110);   //turns on internal pullups for all pins but 0
-}
-
-void SPIWrite(byte spiRegister, byte value){
-  digitalWrite(EX_PIN,LOW);
-  SPI.transfer(CHIP);
-  SPI.transfer(spiRegister);
-  SPI.transfer(value);
-  digitalWrite(EX_PIN,HIGH);
+  SPIWrite(IO_CON_REG, 0b00111110); //This is an untested fix for the port expander always returning 0 (11am feb 15th 2024)
+  SPIWrite(IO_DIR_REG, 0b11111110); // Set pins 1-7 as INPUT, pin 0 as OUTPUT
+  SPIWrite(GPIO_REG, 0x00);         // Sets pin 0 to low
+  SPIWrite(GPPU_REG, 0b11111110);   //turns on internal pullups for all pins but 0
 }

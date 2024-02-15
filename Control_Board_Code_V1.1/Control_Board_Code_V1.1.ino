@@ -203,6 +203,7 @@ void SPIWrite(byte spiRegister, byte value){
   SPI.transfer(value);
   digitalWrite(ExPin,HIGH);
 }
+
 byte SPIRead(byte address){
   digitalWrite(ExPin,LOW);
   SPI.transfer(CHIP_READ);
