@@ -10,3 +10,6 @@
 #define BrakeSig 6
 #define CONTACTOR_OUT 17
 #define CRUISE_PIN 7
+
+#define ACCEL_ZERO_POSITION 700
+#define ACCEL_MAX_POSITION 440

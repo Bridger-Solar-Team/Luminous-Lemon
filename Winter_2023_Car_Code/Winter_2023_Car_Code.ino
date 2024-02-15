@@ -79,7 +79,7 @@ void move_car() {
 
 int calculate_digi_pot(float accel) {
   //converts the acceleration potentionmeter value (between 475 and 875) to a 0-255 range for SPI, and flips it because of the potentiometer mounting
-  digi_pot_val = int(map(accel_pot_raw, 475, 875, 255, 0));
+  digi_pot_val = int(map(accel_pot_raw, ACCEL_MAX_POSITION, ACCEL_ZERO_POSITION, 255, 0));
 
   //truncate the value to between 0 and 255
   digi_pot_val = max(digi_pot_val, 0);
