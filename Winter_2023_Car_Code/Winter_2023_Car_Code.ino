@@ -37,7 +37,7 @@ void setup() {
 void loop() {
   read_inputs(); //TODO(debug): hazzard & display_toggle
   move_car();
-  // run_lights();
+  run_lights();
   // update_display();
   // send_telemetry();
   debug(); //Comment this out to disable printing debug values
@@ -83,6 +83,17 @@ void debug() {
   if(hazard_raw) {
     Serial.print("Hazards! ");
   } 
+
+  Serial.println();
+}
+
+void run_lights() {
+    if(left_turn_raw){
+    SPIWrite(GPIO_REG, 0x01);
+  }
+  else{
+    SPIWrite(GPIO_REG,0x00);
+  }
 }
 
 void read_inputs() {
@@ -133,6 +144,9 @@ void move_car() {
   if(!brake_raw){
     digi_pot_val = calculate_digi_pot(accel_pot_raw);
     DigiPotWrite(digi_pot_val);//writes acceleration value to digital potentiometer
+    Serial.print("Digipot: ");
+    Serial.print(digi_pot_val);
+    Serial.print(". ");
   }
 }
 
@@ -151,21 +165,23 @@ int calculate_digi_pot(float accel) {
 }
 
 void DigiPotWrite(int value){
-    //writes to the  Digipot
-    digitalWrite(POT_PIN,LOW);
-    SPI.transfer(0);
-    SPI.transfer(value);
-    digitalWrite(POT_PIN,HIGH);
+  //writes to the  Digipot
+  // SPI.beginTransaction(SPISettings(10000000, MSBFIRST, SPI_MODE0));
+  digitalWrite(POT_PIN,LOW);
+  SPI.transfer(0);
+  SPI.transfer(value);
+  digitalWrite(POT_PIN,HIGH);
+  // SPI.endTransaction();
 }
 
 byte SPIRead(byte address){
-  SPI.beginTransaction(SPISettings(10000000, MSBFIRST, SPI_MODE1));
+  // SPI.beginTransaction(SPISettings(10000000, MSBFIRST, SPI_MODE0));
   digitalWrite(EX_PIN,LOW);
   SPI.transfer(CHIP_READ);
   SPI.transfer(address);
   byte retrieved_Val = SPI.transfer(0x00);
   digitalWrite(EX_PIN,HIGH);
-  SPI.endTransaction();
+  // SPI.endTransaction();
   Serial.print("Expander: ");
   Serial.print(retrieved_Val);
   Serial.print(". ");
@@ -173,13 +189,13 @@ byte SPIRead(byte address){
 }
 
 void SPIWrite(byte spiRegister, byte value){
-  SPI.beginTransaction(SPISettings(10000000, MSBFIRST, SPI_MODE1));
+  // SPI.beginTransaction(SPISettings(10000000, MSBFIRST, SPI_MODE0));
   digitalWrite(EX_PIN,LOW);
   SPI.transfer(CHIP_WRITE);
   SPI.transfer(spiRegister);
   SPI.transfer(value);
   digitalWrite(EX_PIN,HIGH);
-  SPI.endTransaction();
+  // SPI.endTransaction();
 }
 
 void spi_setup() {
@@ -192,7 +208,7 @@ void spi_setup() {
   digitalWrite(EX_PIN, HIGH);
   delay(100);                      //This may cause issues?
   SPI.begin();
-  SPIWrite(IO_CON_REG, 0b00111110); //This is an untested fix for the port expander always returning 0 (11am feb 15th 2024)
+  //SPIWrite(IO_CON_REG, 0b00111110); //This is an untested fix for the port expander always returning 0 (11am feb 15th 2024)
   SPIWrite(IO_DIR_REG, 0b11111110); // Set pins 1-7 as INPUT, pin 0 as OUTPUT
   SPIWrite(GPIO_REG, 0x00);         // Sets pin 0 to low
   SPIWrite(GPPU_REG, 0b11111110);   //turns on internal pullups for all pins but 0
