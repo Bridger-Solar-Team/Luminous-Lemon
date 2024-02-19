@@ -19,6 +19,11 @@ bool cruise_raw = 0;
 bool hazard_raw = 0;
 bool display_tog_raw = 0;
 
+bool right_turn = 0;
+bool left_turn = 0;
+bool display_tog_record = 0;
+
+LiquidCrystal_I2C lcd = LiquidCrystal_I2C(0x27,16,2);
 
 void setup() {
   //Begin debugging serial port
@@ -31,16 +36,96 @@ void setup() {
   pinMode(LEFT_TURN_SIGNAL_PIN, INPUT_PULLUP);
   pinMode(RIGHT_TURN_SIGNAL_PIN, INPUT_PULLUP);
   pinMode(CRUISE_PIN, INPUT_PULLUP);
-  pinMode(DISPLAY_TOG_SIGNAL_PIN, INPUT);
+  //pinMode(DISPLAY_TOG_SIGNAL_PIN, INPUT); Break in the wire somewhere, not sure if need pullup
+  pinMode(RIGHT_TURN_LIGHT_PIN, OUTPUT);
+  digitalWrite(RIGHT_TURN_LIGHT_PIN, LOW);
+
+  lcd_setup();
+}
+
+void lcd_setup() {
+  //lcd setup
+  lcd.init();
+  lcd.backlight();
+  Wire.setClock(60000);//lowers baud rate to reduce interference over long wires, should not go below 50000
 }
 
 void loop() {
   read_inputs(); //TODO(debug): hazzard & display_toggle
   move_car();
-  run_lights();
-  // update_display();
+  // run_lights();
+  update_display();
   // send_telemetry();
   debug(); //Comment this out to disable printing debug values
+}
+
+void update_display() {
+  if(display_tog_raw){
+    //clears display if button was just hit
+    if(display_tog_record == LOW){
+      lcd.clear();
+      display_tog_record = HIGH;
+    }
+    lcd.setCursor(0, 0);
+
+    //Turn signals, right, left, hazard. hazard overrides right and left
+    lcd.print("T");
+    if(hazard_raw) {
+      lcd.print("H");
+    }
+    else if(right_turn) {
+      lcd.print("R");
+    } else if(left_turn) {
+      lcd.print("L");
+    } else {
+      lcd.print("0");
+    }
+
+    //Digital potentiometer output, aka motor power. 0-255 value
+    lcd.print(" M");
+    if(digi_pot_val < 100){
+      lcd.print("0");
+    }
+    if(digi_pot_val < 10) {
+      lcd.print("0");
+    }
+    lcd.print(digi_pot_val);
+    
+    //Cruise control switch. 0 when out, 1 when in
+    lcd.print(" C");
+    if(cruise_raw) {
+      lcd.print("0");
+    }
+    else {
+      lcd.print("1");
+    }
+
+    //Main power switch. 0 when off, 1 when on
+    lcd.print(" P");
+    if(main_power) {
+      lcd.print("1");
+    }
+    else {
+      lcd.print("0");
+    }
+
+    //Brake pedal. 0 when not braking, 1 when braking
+    lcd.print(" B");
+    if(brake_raw) {
+      lcd.print("1");
+    }
+    else {
+      lcd.print("0");
+    }
+
+  }
+  else {
+    //clears display if button was just hit 
+    if(display_tog_record == HIGH){
+      lcd.clear();
+      display_tog_record = LOW;
+    }
+  }
 }
 
 void debug() {
@@ -59,10 +144,11 @@ void debug() {
     Serial.print("Brake_Engaged ");
   }
   
-  if(!right_turn_raw) {
+  if(right_turn) {
     Serial.print("Turning_Right! ");
   }
-  else if(!left_turn_raw) {
+
+  if(left_turn) {
     Serial.print("Turning_Left! ");
   }
   
@@ -88,16 +174,25 @@ void debug() {
 }
 
 void run_lights() {
-    if(left_turn_raw){
+  //Neither turn signal work
+    if(left_turn){
     SPIWrite(GPIO_REG, 0x01);
   }
   else{
     SPIWrite(GPIO_REG,0x00);
   }
+
+  if(right_turn) {
+    digitalWrite(RIGHT_TURN_LIGHT_PIN, HIGH);
+  }
+  else {
+    digitalWrite(RIGHT_TURN_LIGHT_PIN, LOW);
+  }
+
 }
 
 void read_inputs() {
-  //Read port expander (Currently not working)
+  //Read port expander (Fixed)
   PortExByte = SPIRead(GPIO_REG);
 
   //takes in signal from potentionmeter on steering wheel
@@ -111,26 +206,36 @@ void read_inputs() {
     main_power = 0;
   } 
 
-  //Reads the brake signal, high if brake is pressed(i assume) - Tristan, 12/6/2023
+  //Reads the brake signal, high if brake is pressed
   brake_raw = digitalRead(BRAKE_PIN);
 
   //Left and right turn signals
   left_turn_raw = digitalRead(LEFT_TURN_SIGNAL_PIN);
   right_turn_raw = digitalRead(RIGHT_TURN_SIGNAL_PIN);
 
+  if(!right_turn_raw) {
+    right_turn = 1;
+  }
+  else if(!left_turn_raw) {
+    left_turn = 1;
+  }
+  else {
+    right_turn = 0;
+    left_turn = 0;
+  }
+
   //Cruise control button (it's inverted, so out is true and in is false)
   cruise_raw = digitalRead(CRUISE_PIN);
 
-  //TODO (Does not work)
-  // display_tog_raw = digitalRead(DISPLAY_TOG_SIGNAL_PIN);
+  // TODO (Does not work, there is a break in the wire)
+  display_tog_raw = digitalRead(DISPLAY_TOG_SIGNAL_PIN);
 
-  //TODO (Does Not Work)
-  // if((PortExByte & 0b10000000) == 0b10000000){//Reads hazard value 
-  //   hazard_raw = 1;
-  // } 
-  // else {
-  //   hazard_raw = 0;
-  // }
+  if((PortExByte & 0b10000000) == 0b10000000){//Reads hazard value 
+    hazard_raw = 1;
+  } 
+  else {
+    hazard_raw = 0;
+  }
 }
 
 void move_car() {
