@@ -8,7 +8,8 @@ byte PortExByte;
 float accel_pot_raw = 0;
 
 int digi_pot_val = 0;
-int throttle_percent = 0;
+int throttle_percent = 0; 
+int soc_raw = 255;
 
 bool hazard_val = 0;
 bool brake_raw = 0;
@@ -118,6 +119,11 @@ void update_display() {
       lcd.print("0");
     }
 
+    //State of charge. 0-1023
+    lcd.setCursor(0, 1);
+    lcd.print("SOC");
+    lcd.print(soc_raw);
+
   }
   else {
     //clears display if button was just hit 
@@ -169,6 +175,9 @@ void debug() {
   if(hazard_raw) {
     Serial.print("Hazards! ");
   } 
+
+  Serial.print("SOC: ");
+  Serial.print(soc_raw);
 
   Serial.println();
 }
@@ -236,6 +245,8 @@ void read_inputs() {
   else {
     hazard_raw = 0;
   }
+
+  soc_raw = analogRead(SOG_SIGNAL_PIN);
 }
 
 void move_car() {
