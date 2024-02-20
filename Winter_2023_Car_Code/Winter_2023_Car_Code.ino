@@ -41,7 +41,14 @@ void setup() {
   pinMode(RIGHT_TURN_LIGHT_PIN, OUTPUT);
   digitalWrite(RIGHT_TURN_LIGHT_PIN, LOW);
 
-  lcd_setup(lcd);
+  lcd_setup();
+}
+
+void lcd_setup() {
+  //lcd setup
+  lcd.init();
+  lcd.backlight();
+  Wire.setClock(60000);//lowers baud rate to reduce interference over long wires, should not go below 50000
 }
 
 void loop() {
@@ -172,7 +179,8 @@ void debug() {
   } 
 
   Serial.print("SOC: ");
-  Serial.print(round(soc*1023));
+  Serial.print(soc);
+  Serial.println();
 }
 
 void run_lights() {
@@ -238,7 +246,7 @@ void read_inputs() {
     hazard_pressed = 0;
   }
 
-  soc = map(analogRead(SOG_SIGNAL_PIN), 0, 1023, 0, 1);
+  soc = analogRead(SOG_SIGNAL_PIN)/1023.0;
 }
 
 void move_car() {
