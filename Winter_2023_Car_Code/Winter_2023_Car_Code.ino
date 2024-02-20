@@ -54,11 +54,10 @@ void lcd_setup() {
 void loop() {
   read_inputs(); //TODO(debug): hazzard & display_toggle
   move_car();
-  // run_lights();
+  run_lights();
   update_display();
   // send_telemetry();
   debug(); //Comment this out to disable printing debug values
-  digitalWrite(RIGHT_TURN_LIGHT_PIN, LOW); //Attempting to turn off lights unsucesfully
 }
 
 void update_display() {
@@ -184,19 +183,18 @@ void debug() {
 }
 
 void run_lights() {
-  //Neither turn signal lights work
-    if(left_turn){
-    SPIWrite(GPIO_REG, 0x01);
+  if(hazard_pressed) {
+    SPIWrite(GPIO_REG, 0b00000001);
+    return;
   }
-  else{
-    SPIWrite(GPIO_REG,0x00);
+  if(left_turn){
+    SPIWrite(GPIO_REG, 0b01000001);
   }
-
-  if(right_turn) {
-    digitalWrite(RIGHT_TURN_LIGHT_PIN, HIGH);
+  else if(right_turn) {
+    SPIWrite(GPIO_REG, 0b00000000);
   }
   else {
-    digitalWrite(RIGHT_TURN_LIGHT_PIN, LOW);
+    SPIWrite(GPIO_REG,0b01000000);
   }
 
 }
@@ -208,13 +206,13 @@ void read_inputs() {
   //takes in signal from potentionmeter on steering wheel
   accel_pot_raw = analogRead(ACC_POT_PIN); 
 
-  // Reads Main Power switch, In this case Spare1 on the Interface Control Board
-  if((PortExByte & 0b01000000)==0b01000000){
-    main_power = 1;
-  }
-  else {
-    main_power = 0;
-  } 
+  // Reads Main Power switch, WHICH DOES NOT HAVE A CURRENT PORT AVAILABLE SINCE D1 BROKE
+  // if((PortExByte & 0b01000000)==0b01000000){
+  //   main_power = 1;
+  // }
+  // else {
+  //   main_power = 0;
+  // } 
 
   //Reads the brake signal, high if brake is pressed
   brake_pressed = digitalRead(BRAKE_PIN);
