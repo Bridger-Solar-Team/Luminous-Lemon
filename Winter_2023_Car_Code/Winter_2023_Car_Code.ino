@@ -9,7 +9,7 @@ float accel_pot_raw = 0;
 
 int digi_pot_val = 0;
 int throttle_percent = 0; 
-int soc_raw = 255;
+int soc_raw = 1023;
 
 bool hazard_val = 0;
 bool brake_raw = 0;
@@ -58,6 +58,7 @@ void loop() {
   update_display();
   // send_telemetry();
   debug(); //Comment this out to disable printing debug values
+  digitalWrite(RIGHT_TURN_LIGHT_PIN, LOW);
 }
 
 void update_display() {
@@ -122,7 +123,8 @@ void update_display() {
     //State of charge. 0-1023
     lcd.setCursor(0, 1);
     lcd.print("SOC");
-    lcd.print(soc_raw);
+    lcd.print(min(int(soc_raw/10.23), 99));
+    lcd.print("%");
 
   }
   else {
@@ -178,8 +180,6 @@ void debug() {
 
   Serial.print("SOC: ");
   Serial.print(soc_raw);
-
-  Serial.println();
 }
 
 void run_lights() {
