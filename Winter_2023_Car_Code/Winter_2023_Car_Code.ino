@@ -2,6 +2,9 @@
 #include <LiquidCrystal_I2C.h>
 #include <SPI.h>
 #include "Constants.h"
+#include "SPI_Functions.h"
+#include "Drive_Functions.h"
+#include "LCD_Functions.h"
 
 byte PortExByte;
 
@@ -9,16 +12,13 @@ float accel_pot_raw = 0;
 
 int digi_pot_val = 0;
 int throttle_percent = 0; 
-int soc_raw = 1023;
+float soc = 1;
 
-bool hazard_val = 0;
-bool brake_raw = 0;
+bool brake_pressed = 0;
 bool main_power = 0;
-bool left_turn_raw = 0;
-bool right_turn_raw = 0;
-bool cruise_raw = 0;
-bool hazard_raw = 0;
-bool display_tog_raw = 0;
+bool cruise_control = 0;
+bool hazard_pressed = 0;
+bool display_toggle = 0;
 
 bool right_turn = 0;
 bool left_turn = 0;
@@ -41,14 +41,7 @@ void setup() {
   pinMode(RIGHT_TURN_LIGHT_PIN, OUTPUT);
   digitalWrite(RIGHT_TURN_LIGHT_PIN, LOW);
 
-  lcd_setup();
-}
-
-void lcd_setup() {
-  //lcd setup
-  lcd.init();
-  lcd.backlight();
-  Wire.setClock(60000);//lowers baud rate to reduce interference over long wires, should not go below 50000
+  lcd_setup(lcd);
 }
 
 void loop() {
@@ -58,11 +51,11 @@ void loop() {
   update_display();
   // send_telemetry();
   debug(); //Comment this out to disable printing debug values
-  digitalWrite(RIGHT_TURN_LIGHT_PIN, LOW);
+  digitalWrite(RIGHT_TURN_LIGHT_PIN, LOW); //Attempting to turn off lights unsucesfully
 }
 
 void update_display() {
-  if(display_tog_raw){
+  if(display_toggle){
     //clears display if button was just hit
     if(display_tog_record == LOW){
       lcd.clear();
@@ -72,7 +65,7 @@ void update_display() {
 
     //Turn signals, right, left, hazard. hazard overrides right and left
     lcd.print("T");
-    if(hazard_raw) {
+    if(hazard_pressed) {
       lcd.print("H");
     }
     else if(right_turn) {
@@ -95,11 +88,11 @@ void update_display() {
     
     //Cruise control switch. 0 when out, 1 when in
     lcd.print(" C");
-    if(cruise_raw) {
-      lcd.print("0");
+    if(cruise_control) {
+      lcd.print("1");
     }
     else {
-      lcd.print("1");
+      lcd.print("0");
     }
 
     //Main power switch. 0 when off, 1 when on
@@ -113,7 +106,7 @@ void update_display() {
 
     //Brake pedal. 0 when not braking, 1 when braking
     lcd.print(" B");
-    if(brake_raw) {
+    if(brake_pressed) {
       lcd.print("1");
     }
     else {
@@ -123,7 +116,7 @@ void update_display() {
     //State of charge. 0-1023
     lcd.setCursor(0, 1);
     lcd.print("SOC");
-    lcd.print(min(int(soc_raw/10.23), 99));
+    lcd.print(round(soc*99));
     lcd.print("%");
 
   }
@@ -137,53 +130,53 @@ void update_display() {
 }
 
 void debug() {
-  Serial.print("Acceleration pot: ");
+  Serial.print(F("Acceleration pot: "));
   Serial.print(accel_pot_raw);
   Serial.print(" ");
 
   if(main_power) {
-    Serial.print("Main_Power_On ");
+    Serial.print(F("Main_Power_On "));
   }
   else {
-    Serial.print("Main_Power_Off ");
+    Serial.print(F("Main_Power_Off "));
   }
 
-  if(brake_raw) {
-    Serial.print("Brake_Engaged ");
+  if(brake_pressed) {
+    Serial.print(F("Brake_Engaged "));
   }
   
   if(right_turn) {
-    Serial.print("Turning_Right! ");
+    Serial.print(F("Turning_Right! "));
   }
 
   if(left_turn) {
-    Serial.print("Turning_Left! ");
+    Serial.print(F("Turning_Left! "));
   }
   
-  if(!cruise_raw) {
-    Serial.print("Cruizin! ");
+  if(cruise_control) {
+    Serial.print(F("Cruizin! "));
   }
   
   if(main_power) {
-    Serial.print("Contactors Powered! ");
+    Serial.print(F("Contactors Powered! "));
   } else {
-    Serial.print("Contactors Unpowered ");
+    Serial.print(F("Contactors Unpowered "));
   }
 
-  if(display_tog_raw) {
-    Serial.print("get_TOGGLED! ");
+  if(display_toggle) {
+    Serial.print(F("get_TOGGLED! "));
   }
   
-  if(hazard_raw) {
-    Serial.print("Hazards! ");
+  if(hazard_pressed) {
+    Serial.print(F("Hazards! "));
   } 
 
   Serial.print("SOC: ");
-  Serial.print(soc_raw);
+  Serial.print(round(soc*1023));
 }
 
 void run_lights() {
-  //Neither turn signal work
+  //Neither turn signal lights work
     if(left_turn){
     SPIWrite(GPIO_REG, 0x01);
   }
@@ -216,17 +209,16 @@ void read_inputs() {
   } 
 
   //Reads the brake signal, high if brake is pressed
-  brake_raw = digitalRead(BRAKE_PIN);
+  brake_pressed = digitalRead(BRAKE_PIN);
 
   //Left and right turn signals
-  left_turn_raw = digitalRead(LEFT_TURN_SIGNAL_PIN);
-  right_turn_raw = digitalRead(RIGHT_TURN_SIGNAL_PIN);
-
-  if(!right_turn_raw) {
+  if(!digitalRead(RIGHT_TURN_SIGNAL_PIN)) {
     right_turn = 1;
+    left_turn = 0;
   }
-  else if(!left_turn_raw) {
+  else if(!digitalRead(LEFT_TURN_SIGNAL_PIN)) {
     left_turn = 1;
+    right_turn = 0;
   }
   else {
     right_turn = 0;
@@ -234,19 +226,19 @@ void read_inputs() {
   }
 
   //Cruise control button (it's inverted, so out is true and in is false)
-  cruise_raw = digitalRead(CRUISE_PIN);
+  cruise_control = !digitalRead(CRUISE_PIN);
 
   // TODO (Does not work, there is a break in the wire)
-  display_tog_raw = digitalRead(DISPLAY_TOG_SIGNAL_PIN);
+  display_toggle = digitalRead(DISPLAY_TOG_SIGNAL_PIN);
 
   if((PortExByte & 0b10000000) == 0b10000000){//Reads hazard value 
-    hazard_raw = 1;
+    hazard_pressed = 1;
   } 
   else {
-    hazard_raw = 0;
+    hazard_pressed = 0;
   }
 
-  soc_raw = analogRead(SOG_SIGNAL_PIN);
+  soc = map(analogRead(SOG_SIGNAL_PIN), 0, 1023, 0, 1);
 }
 
 void move_car() {
@@ -257,75 +249,11 @@ void move_car() {
     digitalWrite(CONTACTOR_OUT, LOW);
   }
 
-  if(!brake_raw){
+  if(!brake_pressed){
     digi_pot_val = calculate_digi_pot(accel_pot_raw);
     DigiPotWrite(digi_pot_val);//writes acceleration value to digital potentiometer
-    Serial.print("Digipot: ");
+    Serial.print(F("Digipot: "));
     Serial.print(digi_pot_val);
-    Serial.print(". ");
+    Serial.print(F(". "));
   }
-}
-
-int calculate_digi_pot(float accel) {
-  //converts the acceleration potentionmeter value (between 475 and 875) to a 0-255 range for SPI, and flips it because of the potentiometer mounting
-  if(digi_pot_val < 50) {
-    digi_pot_val = ACCEL_ZERO_POSITION;
-  }
-  digi_pot_val = int(map(accel_pot_raw, ACCEL_MAX_POSITION, ACCEL_ZERO_POSITION, 255, 0));
-
-  //truncate the value to between 0 and 255
-  digi_pot_val = max(digi_pot_val, 0);
-  digi_pot_val = min(digi_pot_val, 255);
-
-  return digi_pot_val;
-}
-
-void DigiPotWrite(int value){
-  //writes to the  Digipot
-  // SPI.beginTransaction(SPISettings(10000000, MSBFIRST, SPI_MODE0));
-  digitalWrite(POT_PIN,LOW);
-  SPI.transfer(0);
-  SPI.transfer(value);
-  digitalWrite(POT_PIN,HIGH);
-  // SPI.endTransaction();
-}
-
-byte SPIRead(byte address){
-  // SPI.beginTransaction(SPISettings(10000000, MSBFIRST, SPI_MODE0));
-  digitalWrite(EX_PIN,LOW);
-  SPI.transfer(CHIP_READ);
-  SPI.transfer(address);
-  byte retrieved_Val = SPI.transfer(0x00);
-  digitalWrite(EX_PIN,HIGH);
-  // SPI.endTransaction();
-  Serial.print("Expander: ");
-  Serial.print(retrieved_Val);
-  Serial.print(". ");
-  return retrieved_Val;
-}
-
-void SPIWrite(byte spiRegister, byte value){
-  // SPI.beginTransaction(SPISettings(10000000, MSBFIRST, SPI_MODE0));
-  digitalWrite(EX_PIN,LOW);
-  SPI.transfer(CHIP_WRITE);
-  SPI.transfer(spiRegister);
-  SPI.transfer(value);
-  digitalWrite(EX_PIN,HIGH);
-  // SPI.endTransaction();
-}
-
-void spi_setup() {
-  //DigiPot SPI setup
-  pinMode(POT_PIN,OUTPUT);
-  digitalWrite(POT_PIN,HIGH);
-
-  //Port expander SPI setup
-  pinMode(EX_PIN, OUTPUT);
-  digitalWrite(EX_PIN, HIGH);
-  delay(100);                      //This may cause issues?
-  SPI.begin();
-  //SPIWrite(IO_CON_REG, 0b00111110); //This is an untested fix for the port expander always returning 0 (11am feb 15th 2024)
-  SPIWrite(IO_DIR_REG, 0b11111110); // Set pins 1-7 as INPUT, pin 0 as OUTPUT
-  SPIWrite(GPIO_REG, 0x00);         // Sets pin 0 to low
-  SPIWrite(GPPU_REG, 0b11111110);   //turns on internal pullups for all pins but 0
 }
