@@ -6,6 +6,8 @@
 #include "Drive_Functions.h"
 #include "LCD_Functions.h"
 
+bool ENABLE_DEBUGGING = 0;
+
 byte PortExByte;
 
 float accel_pot_raw = 0;
@@ -19,16 +21,23 @@ bool main_power = 0;
 bool cruise_control = 0;
 bool hazard_pressed = 0;
 bool display_toggle = 0;
+bool estop = 0;
 
 bool right_turn = 0;
 bool left_turn = 0;
 bool display_tog_record = 0;
+bool light_state = 1;
+
+long flash_timing = 0;
+
 
 LiquidCrystal_I2C lcd = LiquidCrystal_I2C(0x27,16,2);
 
 void setup() {
-  //Begin debugging serial port
-  Serial.begin(9600);
+  //Begin debugging serial port only if debugging(disables pin 0 and 1)
+  if(ENABLE_DEBUGGING) {
+    Serial.begin(9600);
+  }
   //Begin the SPI for port expander and digital potentiometer
   spi_setup();
   //Safeguard the contactor states on first power-up
@@ -38,8 +47,9 @@ void setup() {
   pinMode(RIGHT_TURN_SIGNAL_PIN, INPUT_PULLUP);
   pinMode(CRUISE_PIN, INPUT_PULLUP);
   //pinMode(DISPLAY_TOG_SIGNAL_PIN, INPUT); Break in the wire somewhere, not sure if need pullup
-  pinMode(RIGHT_TURN_LIGHT_PIN, OUTPUT);
-  digitalWrite(RIGHT_TURN_LIGHT_PIN, LOW);
+  pinMode(BATT_POWER_LIGHT, OUTPUT);
+  digitalWrite(BATT_POWER_LIGHT, LOW);
+  pinMode(ESTOP_PIN, INPUT);
 
   lcd_setup();
 }
@@ -57,7 +67,9 @@ void loop() {
   run_lights();
   update_display();
   // send_telemetry();
-  debug(); //Comment this out to disable printing debug values
+  if(ENABLE_DEBUGGING) {
+    debug(); //Comment this out to disable printing debug values
+  }
 }
 
 void update_display() {
@@ -176,6 +188,13 @@ void debug() {
   if(hazard_pressed) {
     Serial.print(F("Hazards! "));
   } 
+  
+  Serial.print(F("Digipot: "));
+  Serial.print(digi_pot_val);
+  Serial.print(F(". "));
+
+  Serial.print(" Lighting: ");
+  Serial.print(light_state);
 
   Serial.print("SOC: ");
   Serial.print(soc);
@@ -183,20 +202,61 @@ void debug() {
 }
 
 void run_lights() {
+  if(!main_power) {
+    if(light_state) {
+      digitalWrite(BATT_POWER_LIGHT, HIGH);
+    }
+    else {
+      digitalWrite(BATT_POWER_LIGHT, LOW);
+    }
+    flash();
+  } 
+  else {
+    digitalWrite(BATT_POWER_LIGHT, LOW);
+  }
+  
   if(hazard_pressed) {
-    SPIWrite(GPIO_REG, 0b00000001);
+    if(light_state) {
+      SPIWrite(GPIO_REG, 0b00000001);
+    } 
+    else {
+      SPIWrite(GPIO_REG,0b01000000);
+    }
+    flash();
     return;
   }
-  if(left_turn){
-    SPIWrite(GPIO_REG, 0b01000001);
+  if(left_turn){;    
+    if(light_state) {
+      SPIWrite(GPIO_REG, 0b01000001);
+    } 
+    else {
+      SPIWrite(GPIO_REG,0b01000000);
+    }
+    flash();
   }
-  else if(right_turn) {
-    SPIWrite(GPIO_REG, 0b00000000);
+  else if(right_turn) {    
+    if(light_state) {
+      SPIWrite(GPIO_REG, 0b00000000);
+    } 
+    else {
+      SPIWrite(GPIO_REG,0b01000000);
+    }
+    flash();
   }
-  else {
+  else if(!main_power) {
     SPIWrite(GPIO_REG,0b01000000);
+  } 
+  else {
+    light_state = 1;
   }
 
+}
+
+void flash() {
+  if(millis()-flash_timing > TURN_SIGNAL_MILLIS) {
+    light_state = !light_state;
+    flash_timing = millis();
+  }
 }
 
 void read_inputs() {
@@ -207,12 +267,15 @@ void read_inputs() {
   accel_pot_raw = analogRead(ACC_POT_PIN); 
 
   // Reads Main Power switch, WHICH DOES NOT HAVE A CURRENT PORT AVAILABLE SINCE D1 BROKE
-  // if((PortExByte & 0b01000000)==0b01000000){
-  //   main_power = 1;
-  // }
-  // else {
-  //   main_power = 0;
-  // } 
+  if((PortExByte & 0b00000010)==0b00000010){
+    main_power = 0;
+  }
+  else if(digitalRead(ESTOP_PIN)) {
+    main_power = 1;
+  }
+  else {
+    main_power = 0;
+  } 
 
   //Reads the brake signal, high if brake is pressed
   brake_pressed = digitalRead(BRAKE_PIN);
@@ -258,8 +321,5 @@ void move_car() {
   if(!brake_pressed){
     digi_pot_val = calculate_digi_pot(accel_pot_raw);
     DigiPotWrite(digi_pot_val);//writes acceleration value to digital potentiometer
-    Serial.print(F("Digipot: "));
-    Serial.print(digi_pot_val);
-    Serial.print(F(". "));
   }
 }
