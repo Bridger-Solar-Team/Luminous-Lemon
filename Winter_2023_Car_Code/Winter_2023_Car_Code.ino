@@ -202,15 +202,10 @@ void debug() {
 }
 
 void run_lights() {
-  if(!main_power) {
-    if(light_state) {
-      digitalWrite(BATT_POWER_LIGHT, HIGH);
-    }
-    else {
-      digitalWrite(BATT_POWER_LIGHT, LOW);
-    }
-    flash();
-  } 
+  flash();
+  if(!main_power && light_state) {
+    digitalWrite(BATT_POWER_LIGHT, HIGH);
+  }
   else {
     digitalWrite(BATT_POWER_LIGHT, LOW);
   }
@@ -218,21 +213,19 @@ void run_lights() {
   if(hazard_pressed) {
     if(light_state) {
       SPIWrite(GPIO_REG, 0b00000001);
-    } 
+    }
     else {
       SPIWrite(GPIO_REG,0b01000000);
     }
-    flash();
     return;
-  }
-  if(left_turn){;    
+  } 
+  else if(left_turn){;    
     if(light_state) {
       SPIWrite(GPIO_REG, 0b01000001);
     } 
     else {
       SPIWrite(GPIO_REG,0b01000000);
     }
-    flash();
   }
   else if(right_turn) {    
     if(light_state) {
@@ -241,13 +234,9 @@ void run_lights() {
     else {
       SPIWrite(GPIO_REG,0b01000000);
     }
-    flash();
   }
-  else if(!main_power) {
-    SPIWrite(GPIO_REG,0b01000000);
-  } 
   else {
-    light_state = 1;
+    SPIWrite(GPIO_REG,0b01000000);
   }
 
 }
