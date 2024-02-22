@@ -18,6 +18,7 @@
 #define SOG_SIGNAL_PIN A2
 #define BATT_POWER_LIGHT 0
 #define ESTOP_PIN 2
+#define WHEEL_SPEED_PIN 3
 
 #define TURN_SIGNAL_MILLIS 500
 

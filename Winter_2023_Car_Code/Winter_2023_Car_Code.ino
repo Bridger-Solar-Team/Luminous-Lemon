@@ -50,8 +50,35 @@ void setup() {
   pinMode(BATT_POWER_LIGHT, OUTPUT);
   digitalWrite(BATT_POWER_LIGHT, LOW);
   pinMode(ESTOP_PIN, INPUT);
+  pinMode(SOG_SIGNAL_PIN, INPUT);
 
   lcd_setup();
+  
+  //Motor Speed Read
+  pinMode(WHEEL_SPEED_PIN, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(WHEEL_SPEED_PIN),SpeedRead,FALLING);
+
+}
+
+//ISR that iturrupts on falling edge of every pulse from motor controller, records timer value to caculate speed
+int SpeedPeriodPrev;
+int SpeedPeriodCur;
+float ConvFactor = 17.6;
+float SpeedPeriodDiff = 0;
+int CurSpeedVal = 0;
+float ClockSpeed = 15625;
+int WheelCirc = 66; //inches
+int PulseNum = 16;
+
+void SpeedRead(){
+  SpeedPeriodPrev = SpeedPeriodCur;
+  SpeedPeriodCur = millis();
+}
+
+void calculate_speed(){
+  SpeedPeriodDiff = abs(SpeedPeriodCur-SpeedPeriodPrev);
+  CurSpeedVal = 1/((SpeedPeriodDiff*PulseNum)/1000) * WheelCirc * 0.0568;
+  if(CurSpeedVal < 3) CurSpeedVal = 0;
 }
 
 void lcd_setup() {
@@ -64,6 +91,7 @@ void lcd_setup() {
 void loop() {
   read_inputs(); //TODO(debug): hazzard & display_toggle
   move_car();
+  calculate_speed();
   run_lights();
   update_display();
   // send_telemetry();
@@ -135,7 +163,16 @@ void update_display() {
     lcd.setCursor(0, 1);
     lcd.print("SOC");
     lcd.print(round(soc*99));
-    lcd.print("%");
+    lcd.print("% ");
+
+    lcd.print("SPD");
+    if(CurSpeedVal < 100) {
+      lcd.print(0);
+    }
+    if(CurSpeedVal < 10) {
+      lcd.print(0);
+    }
+    lcd.print(CurSpeedVal);
 
   }
   else {
