@@ -29,6 +29,9 @@ bool display_tog_record = 0;
 bool light_state = 1;
 
 unsigned long flash_timing = 0;
+unsigned long curr_loop_time = 0;
+unsigned long prev_loop_time = 0;
+int loop_time = 10;
 
 //Using buffers to print to lcd for faster response times
 String line0;
@@ -39,7 +42,7 @@ LiquidCrystal_I2C lcd = LiquidCrystal_I2C(0x27,16,2);
 void setup() {
   //Begin debugging serial port only if debugging(disables pin 0 and 1)
   if(ENABLE_DEBUGGING) {
-    Serial.begin(9600);
+    Serial.begin(115200);
   }
   //Begin the SPI for port expander and digital potentiometer
   spi_setup();
@@ -72,6 +75,9 @@ void lcd_setup() {
 }
 
 void loop() {
+  prev_loop_time = curr_loop_time;
+  curr_loop_time = millis();
+  loop_time = curr_loop_time-prev_loop_time;
   read_inputs(); //TODO(debug): hazzard & display_toggle
   move_car();
   run_lights();
@@ -142,6 +148,11 @@ void update_display() {
   line1 += " MPH";
   line1 += (CurSpeedVal/10)%10;
   line1 += CurSpeedVal%10;
+
+  line1 += " MS";
+  line1 += (loop_time/100)%10;
+  line1 += (loop_time/10)%10;
+  line1 += loop_time%10;
 
   lcd.setCursor(0, 0);
   lcd.print(line0);
