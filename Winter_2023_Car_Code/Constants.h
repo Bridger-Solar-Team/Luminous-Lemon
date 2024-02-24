@@ -24,3 +24,6 @@
 
 #define ACCEL_ZERO_POSITION 750
 #define ACCEL_MAX_POSITION 400
+
+#define WheelCirc 66 //inches
+#define PulseNum 16 //Pulses per rotation

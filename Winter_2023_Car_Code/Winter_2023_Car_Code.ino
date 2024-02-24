@@ -5,6 +5,7 @@
 #include "SPI_Functions.h"
 #include "Drive_Functions.h"
 #include "LCD_Functions.h"
+#include "Lights.h"
 
 bool ENABLE_DEBUGGING = 0;
 
@@ -60,26 +61,7 @@ void setup() {
 
 }
 
-//ISR that iturrupts on falling edge of every pulse from motor controller, records timer value to caculate speed
-int SpeedPeriodPrev;
-int SpeedPeriodCur;
-float ConvFactor = 17.6;
-float SpeedPeriodDiff = 0;
-int CurSpeedVal = 0;
-float ClockSpeed = 15625;
-int WheelCirc = 66; //inches
-int PulseNum = 16;
 
-void SpeedRead(){
-  SpeedPeriodPrev = SpeedPeriodCur;
-  SpeedPeriodCur = millis();
-}
-
-void calculate_speed(){
-  SpeedPeriodDiff = abs(SpeedPeriodCur-SpeedPeriodPrev);
-  CurSpeedVal = 1/((SpeedPeriodDiff*PulseNum)/1000) * WheelCirc * 0.0568;
-  if(CurSpeedVal < 3) CurSpeedVal = 0;
-}
 
 void lcd_setup() {
   //lcd setup
@@ -91,7 +73,6 @@ void lcd_setup() {
 void loop() {
   read_inputs(); //TODO(debug): hazzard & display_toggle
   move_car();
-  calculate_speed();
   run_lights();
   update_display();
   // send_telemetry();
@@ -241,7 +222,7 @@ void debug() {
 void run_lights() {
   flash();
   if(!main_power && light_state) {
-    digitalWrite(BATT_POWER_LIGHT, HIGH);
+    batt_light_on();
   }
   else {
     digitalWrite(BATT_POWER_LIGHT, LOW);
@@ -334,18 +315,21 @@ void read_inputs() {
   }
 
   soc = analogRead(SOG_SIGNAL_PIN)/1023.0;
+  
+  calculate_speed();
 }
 
 void move_car() {
-  //Turn on contactors if main power switch is on
+  //Turn on contactors if main power switch is on and BMS is not faulted
   if(main_power) {
     digitalWrite(CONTACTOR_OUT, HIGH);
   } else {
     digitalWrite(CONTACTOR_OUT, LOW);
   }
 
+  //only move if we arent pressing the break
   if(!brake_pressed){
     digi_pot_val = calculate_digi_pot(accel_pot_raw);
-    DigiPotWrite(digi_pot_val);//writes acceleration value to digital potentiometer
+    DigiPotWrite(digi_pot_val); //writes acceleration value to digital potentiometer
   }
 }

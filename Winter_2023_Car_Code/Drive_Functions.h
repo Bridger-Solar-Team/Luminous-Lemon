@@ -12,3 +12,20 @@ int calculate_digi_pot(int accel) {
 
   return calculated_digipot;
 }
+
+//ISR that iturrupts on falling edge of every pulse from motor controller, records timer value to caculate speed
+int SpeedPeriodPrev;
+int SpeedPeriodCur;
+float SpeedPeriodDiff = 0;
+int CurSpeedVal = 0;
+
+void SpeedRead(){
+  SpeedPeriodPrev = SpeedPeriodCur;
+  SpeedPeriodCur = millis();
+}
+
+void calculate_speed(){
+  SpeedPeriodDiff = abs(SpeedPeriodCur-SpeedPeriodPrev);
+  CurSpeedVal = 1/((SpeedPeriodDiff*PulseNum)/1000) * WheelCirc * 0.0568;
+  if(CurSpeedVal < 1) CurSpeedVal = 0;
+}
