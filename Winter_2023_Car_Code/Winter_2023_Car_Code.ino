@@ -61,13 +61,12 @@ void setup() {
 
 }
 
-
-
 void lcd_setup() {
   //lcd setup
   lcd.init();
   lcd.backlight();
   Wire.setClock(60000);//lowers baud rate to reduce interference over long wires, should not go below 50000
+  lcd.clear();
 }
 
 void loop() {
@@ -82,87 +81,75 @@ void loop() {
 }
 
 void update_display() {
-  if(display_toggle){
-    //clears display if button was just hit
-    if(display_tog_record == LOW){
-      lcd.clear();
-      display_tog_record = HIGH;
-    }
-    lcd.setCursor(0, 0);
+  //Using buffers to print to lcd for faster response times
+  char line0[16];
+  char line1[16];
 
-    //Turn signals, right, left, hazard. hazard overrides right and left
-    lcd.print("T");
-    if(hazard_pressed) {
-      lcd.print("H");
-    }
-    else if(right_turn) {
-      lcd.print("R");
-    } else if(left_turn) {
-      lcd.print("L");
-    } else {
-      lcd.print("0");
-    }
+  //Turn signals, right, left, hazard. hazard overrides right and left
+  line0[0] = "T";
+  if(hazard_pressed) {
+    line0[1] = "H";
+  }
+  else if(right_turn) {
+    line0[1] = "R";
+  } else if(left_turn) {
+    line0[1] = "L";
+  } else {
+    line0[1] = "0";
+  }
 
-    //Digital potentiometer output, aka motor power. 0-255 value
-    lcd.print(" M");
-    if(digi_pot_val < 100){
-      lcd.print("0");
-    }
-    if(digi_pot_val < 10) {
-      lcd.print("0");
-    }
-    lcd.print(digi_pot_val);
-    
-    //Cruise control switch. 0 when out, 1 when in
-    lcd.print(" C");
-    if(cruise_control) {
-      lcd.print("1");
-    }
-    else {
-      lcd.print("0");
-    }
-
-    //Main power switch. 0 when off, 1 when on
-    lcd.print(" P");
-    if(main_power) {
-      lcd.print("1");
-    }
-    else {
-      lcd.print("0");
-    }
-
-    //Brake pedal. 0 when not braking, 1 when braking
-    lcd.print(" B");
-    if(brake_pressed) {
-      lcd.print("1");
-    }
-    else {
-      lcd.print("0");
-    }
-
-    //State of charge. 0-1023
-    lcd.setCursor(0, 1);
-    lcd.print("SOC");
-    lcd.print(round(soc*99));
-    lcd.print("% ");
-
-    lcd.print("SPD");
-    if(CurSpeedVal < 100) {
-      lcd.print(0);
-    }
-    if(CurSpeedVal < 10) {
-      lcd.print(0);
-    }
-    lcd.print(CurSpeedVal);
-
+  //Digital potentiometer output, aka motor power. 0-255 value
+  line0[3] = "M";
+  line0[4] = (digi_pot_val/100)%10; //Hundreds place
+  line0[5] = (digi_pot_val/10)%10; //Tens place
+  line0[6] = digi_pot_val%10; //Singles place
+  
+  //Cruise control switch. 0 when out, 1 when in
+  line0[8] = "C";
+  if(cruise_control) {
+    line0[9] = "1";
   }
   else {
-    //clears display if button was just hit 
-    if(display_tog_record == HIGH){
-      lcd.clear();
-      display_tog_record = LOW;
-    }
+    line0[9] = "0";
   }
+
+  //Main power switch. 0 when off, 1 when on
+  line0[11] = "P";
+  if(main_power) {
+    line0[12] = "1";
+  }
+  else {
+    line0[12] = "0";
+  }
+
+  //Brake pedal. 0 when not braking, 1 when braking
+  line0[14] = "B";
+  if(brake_pressed) {
+    line0[15] = "1";
+  }
+  else {
+    line0[15] = "0";
+  }
+  //End of the top row
+
+  //State of charge. 0-99%
+  line1[0] = "V";
+  line1[1] = "+";
+  line1[2] = (round(soc*99)/10)%10;
+  line1[3] = round(soc*99)%10;
+  line1[4] = "%";
+
+  //Speed, 0-99 miles per hour
+  line1[6] = "M";
+  line1[7] = "P";
+  line1[8] = "H";
+  line1[9] = (CurSpeedVal/10)%10;
+  line1[10] = CurSpeedVal%10;
+
+  lcd.setCursor(0, 0);
+  lcd.print(line0);
+  lcd.setCursor(0, 1);
+  lcd.print(line1);
 }
 
 void debug() {
@@ -225,36 +212,35 @@ void run_lights() {
     batt_light_on();
   }
   else {
-    digitalWrite(BATT_POWER_LIGHT, LOW);
+    batt_light_off();
   }
   
   if(hazard_pressed) {
     if(light_state) {
-      SPIWrite(GPIO_REG, 0b00000001);
+      hazard_light_on();
     }
     else {
-      SPIWrite(GPIO_REG,0b01000000);
+      turn_signal_lights_off();
     }
-    return;
   } 
   else if(left_turn){;    
     if(light_state) {
-      SPIWrite(GPIO_REG, 0b01000001);
+      left_turn_lights_on();
     } 
     else {
-      SPIWrite(GPIO_REG,0b01000000);
+      turn_signal_lights_off();
     }
   }
   else if(right_turn) {    
     if(light_state) {
-      SPIWrite(GPIO_REG, 0b00000000);
+      right_turn_lights_on();
     } 
     else {
-      SPIWrite(GPIO_REG,0b01000000);
+      turn_signal_lights_off();
     }
   }
   else {
-    SPIWrite(GPIO_REG,0b01000000);
+    turn_signal_lights_off();
   }
 
 }

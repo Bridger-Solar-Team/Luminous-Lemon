@@ -14,8 +14,9 @@ int calculate_digi_pot(int accel) {
 }
 
 //ISR that iturrupts on falling edge of every pulse from motor controller, records timer value to caculate speed
-int SpeedPeriodPrev;
-int SpeedPeriodCur;
+unsigned long SpeedPeriodPrev; //This rolls over every 49.7 days 
+unsigned long SpeedPeriodCur;
+
 float SpeedPeriodDiff = 0;
 int CurSpeedVal = 0;
 
@@ -28,4 +29,5 @@ void calculate_speed(){
   SpeedPeriodDiff = abs(SpeedPeriodCur-SpeedPeriodPrev);
   CurSpeedVal = 1/((SpeedPeriodDiff*PulseNum)/1000) * WheelCirc * 0.0568;
   if(CurSpeedVal < 1) CurSpeedVal = 0;
+  if(CurSpeedVal > 99) CurSpeedVal = 99;
 }
