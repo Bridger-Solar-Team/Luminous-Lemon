@@ -22,14 +22,13 @@ bool main_power = 0;
 bool cruise_control = 0;
 bool hazard_pressed = 0;
 bool display_toggle = 0;
-bool estop = 0;
 
 bool right_turn = 0;
 bool left_turn = 0;
 bool display_tog_record = 0;
 bool light_state = 1;
 
-long flash_timing = 0;
+unsigned long flash_timing = 0;
 
 
 LiquidCrystal_I2C lcd = LiquidCrystal_I2C(0x27,16,2);
@@ -210,8 +209,12 @@ void run_lights() {
   flash();
   if(!main_power && light_state) {
     batt_light_on();
+    hazard_light_on();
   }
-  else {
+  else if(!main_power && !light_state) {
+    batt_light_off();
+    turn_signal_lights_off();
+  } else {
     batt_light_off();
   }
   
