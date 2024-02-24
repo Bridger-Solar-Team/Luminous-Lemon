@@ -30,6 +30,9 @@ bool light_state = 1;
 
 unsigned long flash_timing = 0;
 
+//Using buffers to print to lcd for faster response times
+String line0;
+String line1;
 
 LiquidCrystal_I2C lcd = LiquidCrystal_I2C(0x27,16,2);
 
@@ -80,70 +83,65 @@ void loop() {
 }
 
 void update_display() {
-  //Using buffers to print to lcd for faster response times
-  char line0[16];
-  char line1[16];
-
+  line0 = "";
+  line1 = "";
   //Turn signals, right, left, hazard. hazard overrides right and left
-  line0[0] = "T";
+  line0 += "T";
   if(hazard_pressed) {
-    line0[1] = "H";
+    line0 += "H";
   }
   else if(right_turn) {
-    line0[1] = "R";
+    line0 += "R";
   } else if(left_turn) {
-    line0[1] = "L";
+    line0 += "L";
   } else {
-    line0[1] = "0";
+    line0 += "0";
   }
 
   //Digital potentiometer output, aka motor power. 0-255 value
-  line0[3] = "M";
-  line0[4] = (digi_pot_val/100)%10; //Hundreds place
-  line0[5] = (digi_pot_val/10)%10; //Tens place
-  line0[6] = digi_pot_val%10; //Singles place
+  line0 += " M";
+  line0 += (digi_pot_val/100)%10; //Hundreds place
+  line0 += (digi_pot_val/10)%10; //Tens place
+  line0 += digi_pot_val%10; //Singles place
   
   //Cruise control switch. 0 when out, 1 when in
-  line0[8] = "C";
+  line0 += " C";
   if(cruise_control) {
-    line0[9] = "1";
+    line0 += "1";
   }
   else {
-    line0[9] = "0";
+    line0 += "0";
   }
 
   //Main power switch. 0 when off, 1 when on
-  line0[11] = "P";
+  line0 += " P";
   if(main_power) {
-    line0[12] = "1";
+    line0 += "1";
   }
   else {
-    line0[12] = "0";
+    line0 += "0";
   }
 
   //Brake pedal. 0 when not braking, 1 when braking
-  line0[14] = "B";
+  line0 += " B";
   if(brake_pressed) {
-    line0[15] = "1";
+    line0 += "1";
   }
   else {
-    line0[15] = "0";
+    line0 += "0";
   }
   //End of the top row
 
   //State of charge. 0-99%
-  line1[0] = "V";
-  line1[1] = "+";
-  line1[2] = (round(soc*99)/10)%10;
-  line1[3] = round(soc*99)%10;
-  line1[4] = "%";
+  line1 += "V";
+  line1 += (round(soc*99)/10)%10;
+  line1 += round(soc*99)%10;
+  line1 += "%";
 
   //Speed, 0-99 miles per hour
-  line1[6] = "M";
-  line1[7] = "P";
-  line1[8] = "H";
-  line1[9] = (CurSpeedVal/10)%10;
-  line1[10] = CurSpeedVal%10;
+  line1 += " MPH";
+  line1 += (CurSpeedVal/10)%10;
+  line1 += CurSpeedVal%10;
 
   lcd.setCursor(0, 0);
   lcd.print(line0);
@@ -202,6 +200,11 @@ void debug() {
 
   Serial.print("SOC: ");
   Serial.print(soc);
+
+  Serial.print(" line0:");
+  Serial.print(line0);
+  Serial.print(" line1:");
+  Serial.print(line1);
   Serial.println();
 }
 
@@ -210,10 +213,12 @@ void run_lights() {
   if(!main_power && light_state) {
     batt_light_on();
     hazard_light_on();
+    return;
   }
   else if(!main_power && !light_state) {
     batt_light_off();
     turn_signal_lights_off();
+    return;
   } else {
     batt_light_off();
   }
