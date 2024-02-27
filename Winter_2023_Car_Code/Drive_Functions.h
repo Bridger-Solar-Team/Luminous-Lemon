@@ -27,7 +27,14 @@ void SpeedRead(){
 
 void calculate_speed(){
   SpeedPeriodDiff = abs(SpeedPeriodCur-SpeedPeriodPrev);
-  CurSpeedVal = 1/((SpeedPeriodDiff*PulseNum)/1000) * WheelCirc * 0.0568;
+  
+  //Milliseconds per pulse, to milliseconds per rotation, to seconds per rotation, to rotations per second
+  CurSpeedVal = 1/((SpeedPeriodDiff*PulseNum)/1000);
+
+  //Inches per second then conversion to miles per hour
+  CurSpeedVal = CurSpeedVal * WHEEL_CIRCUMFERENCE * 0.0568;
   if(CurSpeedVal < 1) CurSpeedVal = 0;
+
+  //The car should never go above 40 MPH or so, but 2 digits on the screen is still two digits
   if(CurSpeedVal > 99) CurSpeedVal = 99;
 }

@@ -67,7 +67,6 @@ void setup() {
 }
 
 void lcd_setup() {
-  //lcd setup
   lcd.init();
   lcd.backlight();
   Wire.setClock(60000);//lowers baud rate to reduce interference over long wires, should not go below 50000
@@ -78,13 +77,14 @@ void loop() {
   prev_loop_time = curr_loop_time;
   curr_loop_time = millis();
   loop_time = curr_loop_time-prev_loop_time;
-  read_inputs(); //TODO(debug): hazzard & display_toggle
+  read_inputs(); //TODO(debug): display_toggle(this is a wiring issue, needs to be fixed on car)
   move_car();
   run_lights();
   update_display();
   // send_telemetry();
+  // log_data();
   if(ENABLE_DEBUGGING) {
-    debug(); //Comment this out to disable printing debug values
+    debug();
   }
 }
 
@@ -264,7 +264,7 @@ void run_lights() {
 
 }
 
-void flash() {
+bool flash() {
   if(millis()-flash_timing > TURN_SIGNAL_MILLIS) {
     light_state = !light_state;
     flash_timing = millis();
@@ -272,13 +272,13 @@ void flash() {
 }
 
 void read_inputs() {
-  //Read port expander (Fixed)
+  //Read port expander
   PortExByte = SPIRead(GPIO_REG);
 
   //takes in signal from potentionmeter on steering wheel
   accel_pot_raw = analogRead(ACC_POT_PIN); 
 
-  // Reads Main Power switch, WHICH DOES NOT HAVE A CURRENT PORT AVAILABLE SINCE D1 BROKE
+  // Reads Main Power switch, and confirms ESTOP value
   if((PortExByte & 0b00000010)==0b00000010){
     main_power = 0;
   }
