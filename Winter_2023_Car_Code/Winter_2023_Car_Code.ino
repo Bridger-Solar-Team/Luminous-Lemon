@@ -36,6 +36,8 @@ int loop_time = 10;
 //Using buffers to print to lcd for faster response times
 String line0;
 String line1;
+String old_line0;
+String old_line1;
 
 LiquidCrystal_I2C lcd = LiquidCrystal_I2C(0x27,16,2);
 
@@ -89,8 +91,8 @@ void loop() {
 }
 
 void update_display() {
-//00MPH MTR56% CRS
-//V+87% PWR ON  T0
+  //00MPH MTR56% CRS
+  //V+87% PWR ON  T0
   
   old_line0 = line0;
   old_line1 = line1;
@@ -333,6 +335,8 @@ void read_inputs() {
 }
 
 void move_car() {
+  int cruise_speed = 0;
+  bool cruise_toggle = 1;
   //Turn on contactors if main power switch is on and BMS is not faulted
   if(main_power) {
     digitalWrite(CONTACTOR_OUT, HIGH);
@@ -340,9 +344,27 @@ void move_car() {
     digitalWrite(CONTACTOR_OUT, LOW);
   }
 
+  digi_pot_val = calculate_digi_pot(accel_pot_raw);
+  if(cruise_control) {
+    if(brake_pressed){
+      cruise_control = false;
+      goto CRUISE_BREAK;
+    }
+    if(cruise_toggle) {
+      cruise_speed = digi_pot_val;
+      cruise_toggle = 0;
+    }
+    digi_pot_val = cruise_speed;
+  }
+  CRUISE_BREAK:
+  if(!cruise_control) {
+    if(!cruise_toggle){
+      cruise_toggle = 1;
+    }
+  }
+
   //only move if we arent pressing the break
   if(!brake_pressed){
-    digi_pot_val = calculate_digi_pot(accel_pot_raw);
     DigiPotWrite(digi_pot_val); //writes acceleration value to digital potentiometer
   }
 }
