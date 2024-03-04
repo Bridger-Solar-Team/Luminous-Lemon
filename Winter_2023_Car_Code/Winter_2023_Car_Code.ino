@@ -89,75 +89,83 @@ void loop() {
 }
 
 void update_display() {
+//00MPH MTR56% CRS
+//V+87% PWR ON  T0
+  
+  old_line0 = line0;
+  old_line1 = line1;
   line0 = "";
   line1 = "";
-  //Turn signals, right, left, hazard. hazard overrides right and left
-  line0 += "T";
-  if(hazard_pressed) {
-    line0 += "H";
-  }
-  else if(right_turn) {
-    line0 += "R";
-  } else if(left_turn) {
-    line0 += "L";
-  } else {
-    line0 += "0";
-  }
 
-  //Digital potentiometer output, aka motor power. 0-255 value
-  line0 += " M";
-  line0 += (digi_pot_val/100)%10; //Hundreds place
-  line0 += (digi_pot_val/10)%10; //Tens place
-  line0 += digi_pot_val%10; //Singles place
-  
-  //Cruise control switch. 0 when out, 1 when in
-  line0 += " C";
-  if(cruise_control) {
-    line0 += "1";
-  }
-  else {
-    line0 += "0";
-  }
+  //Speed, 0-99 miles per hour
+  line0 += (CurSpeedVal/10)%10; //1
+  line0 += CurSpeedVal%10; //2
+  line0 += "MPH "; //3,4,5,6
 
-  //Main power switch. 0 when off, 1 when on
-  line0 += " P";
-  if(main_power) {
-    line0 += "1";
-  }
-  else {
-    line0 += "0";
-  }
-
-  //Brake pedal. 0 when not braking, 1 when braking
-  line0 += " B";
+  //Brake pedal. BRAKE when braking, motor percent power otherwise
   if(brake_pressed) {
-    line0 += "1";
+    line0 += "BRAKE!"; //7,8,9,10,11,12
   }
   else {
-    line0 += "0";
+    line0 += "MTR"; //7,8,9
+    //0-99 motor power as an integer for no decimals
+    int motor_power = min(round((digi_pot_val/255.0)*100),99);
+    line0 += (motor_power/10)%10; //10
+    line0 += motor_power%10; //11
+    line0 += "%"; //12
+  }
+
+  //Cruise control switch. 0 when out, 1 when in
+  if(cruise_control) {
+    line0 += " CRS"; //13,14,15,16
+  }
+  else {
+    line0 += "    "; //13,14,15,16
   }
   //End of the top row
 
   //State of charge. 0-99%
-  line1 += "V";
-  line1 += (round(soc*99)/10)%10;
-  line1 += round(soc*99)%10;
-  line1 += "%";
+  line1 += "V+"; //1,2
+  line1 += (round(soc*99)/10)%10; //3
+  line1 += round(soc*99)%10; //4
+  line1 += "% "; //5, 6
 
-  //Speed, 0-99 miles per hour
-  line1 += " MPH";
-  line1 += (CurSpeedVal/10)%10;
-  line1 += CurSpeedVal%10;
+  //Main power switch. PWR ON when on, PWROFF when off
+  if(main_power) {
+    line1 += "PWR ON"; //7,8,9,10,11,12
+  }
+  else {
+    line1 += "PWROFF"; //7,8,9,10,11,12
+  }
+  
+  //Turn signals (T), right(R), left(L), hazard(H), and nothing(0). hazard overrides right and left
+  line1 += "  T"; //13,14,15
+  if(hazard_pressed) {
+    line1 += "H"; //16
+  }
+  else if(right_turn) {
+    line1 += "R"; //16
+  }
+  else if(left_turn) {
+    line1 += "L"; //16
+  }
+  else {
+    line1 += "0"; //16
+  }
 
-  line1 += " MS";
-  line1 += (loop_time/100)%10;
-  line1 += (loop_time/10)%10;
-  line1 += loop_time%10;
+  //Only update the display if the data has changed
+  if(old_line0 != line0){
+    lcd.setCursor(0, 0);
+    lcd.print(line0);
+    old_line0 = line0;
+  }
 
-  lcd.setCursor(0, 0);
-  lcd.print(line0);
-  lcd.setCursor(0, 1);
-  lcd.print(line1);
+  //Only update the display if the data has changed
+  if(old_line1 != line1) {
+    lcd.setCursor(0, 1);
+    lcd.print(line1);
+    old_line1 = line1;
+  }
 }
 
 void debug() {
