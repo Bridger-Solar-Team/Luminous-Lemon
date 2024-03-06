@@ -16,12 +16,14 @@ float accel_pot_raw = 0;
 int digi_pot_val = 0;
 int throttle_percent = 0; 
 float soc = 1;
+int cruise_speed = 0;
 
 bool brake_pressed = 0;
 bool main_power = 0;
 bool cruise_control = 0;
 bool hazard_pressed = 0;
 bool display_toggle = 0;
+bool cruise_toggle = 1;
 
 bool right_turn = 0;
 bool left_turn = 0;
@@ -111,7 +113,12 @@ void update_display() {
   else {
     line0 += "MTR"; //7,8,9
     //0-99 motor power as an integer for no decimals
-    int motor_power = min(round((digi_pot_val/255.0)*100),99);
+    int motor_power;
+    if(cruise_control){
+      motor_power = min(round((cruise_speed/255.0)*100),99);
+    } else {
+      motor_power = min(round((digi_pot_val/255.0)*100),99);
+    }
     line0 += (motor_power/10)%10; //10
     line0 += motor_power%10; //11
     line0 += "%"; //12
@@ -335,8 +342,6 @@ void read_inputs() {
 }
 
 void move_car() {
-  int cruise_speed = 0;
-  bool cruise_toggle = 1;
   //Turn on contactors if main power switch is on and BMS is not faulted
   if(main_power) {
     digitalWrite(CONTACTOR_OUT, HIGH);
