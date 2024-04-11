@@ -46,7 +46,7 @@ LiquidCrystal_I2C lcd = LiquidCrystal_I2C(0x27,16,2);
 void setup() {
   //Begin debugging serial port only if debugging(disables pin 0 and 1)
   if(ENABLE_DEBUGGING) {
-    Serial.begin(115200);
+    Serial.begin(9600);
   }
   //Begin the SPI for port expander and digital potentiometer
   spi_setup();
@@ -61,7 +61,6 @@ void setup() {
   digitalWrite(BATT_POWER_LIGHT, LOW);
   pinMode(ESTOP_PIN, INPUT);
   pinMode(SOG_SIGNAL_PIN, INPUT);
-
   lcd_setup();
   
   //Motor Speed Read
@@ -71,7 +70,9 @@ void setup() {
 }
 
 void lcd_setup() {
+  Serial.println("before lcd init, ");
   lcd.init();
+  Serial.println("after lcd init");
   lcd.backlight();
   Wire.setClock(60000);//lowers baud rate to reduce interference over long wires, should not go below 50000
   lcd.clear();
