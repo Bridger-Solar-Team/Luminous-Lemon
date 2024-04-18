@@ -24,6 +24,8 @@ bool cruise_control = 0;
 bool hazard_pressed = 0;
 bool display_toggle = 0;
 bool cruise_toggle = 1;
+bool fault = 0;
+bool power_switch = 0;
 
 bool right_turn = 0;
 bool left_turn = 0;
@@ -141,7 +143,10 @@ void update_display() {
   line1 += "% "; //5, 6
 
   //Main power switch. PWR ON when on, PWROFF when off
-  if(main_power) {
+  if(fault) {
+    line1 += "FAULT "; //7, 8, 9, 10, 11, 12
+  }
+  else if(main_power) {
     line1 += "PWR ON"; //7,8,9,10,11,12
   }
   else {
@@ -296,8 +301,23 @@ void read_inputs() {
   //takes in signal from potentionmeter on steering wheel
   accel_pot_raw = analogRead(ACC_POT_PIN); 
 
-  // Reads Main Power switch, and confirms ESTOP value
   if((PortExByte & 0b00000010)==0b00000010){
+    power_switch = 0;
+  } else {
+    power_switch = 1;
+  }
+
+  if((PortExByte & 0b00001000)!=0b00001000){
+    fault = 1;
+  } else {
+    fault = 0;
+  }
+  // Reads Main Power switch, and confirms ESTOP value
+  if(!power_switch){
+    //main power switch
+    main_power = 0;
+  }else if(fault){
+    //bms fault
     main_power = 0;
   }
   else if(digitalRead(ESTOP_PIN)) {
