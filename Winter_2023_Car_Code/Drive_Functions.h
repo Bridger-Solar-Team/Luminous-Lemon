@@ -9,6 +9,9 @@ int calculate_digi_pot(int accel) {
   //truncate the value to between 0 and 255
   calculated_digipot = max(calculated_digipot, 0);
   calculated_digipot = min(calculated_digipot, 255);
+  if(calculated_digipot <= 6) {
+    calculated_digipot = 0;
+  }
 
   return calculated_digipot;
 }

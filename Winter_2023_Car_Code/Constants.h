@@ -22,8 +22,8 @@
 
 #define TURN_SIGNAL_MILLIS 500
 
-#define ACCEL_ZERO_POSITION 750
-#define ACCEL_MAX_POSITION 400
+#define ACCEL_ZERO_POSITION 570
+#define ACCEL_MAX_POSITION 310
 
 #define WHEEL_CIRCUMFERENCE 66 //inches
 #define PulseNum 16 //Pulses per rotation

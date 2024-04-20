@@ -7,7 +7,7 @@
 #include "LCD_Functions.h"
 #include "Lights.h"
 
-bool ENABLE_DEBUGGING = 0;
+bool ENABLE_DEBUGGING = 1;
 
 byte PortExByte;
 
