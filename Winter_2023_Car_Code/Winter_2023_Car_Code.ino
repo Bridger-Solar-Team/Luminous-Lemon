@@ -317,9 +317,9 @@ void read_inputs() {
 
   if((PortExByte & 0b00001000)!=0b00001000){
     fault = 1;
-  } else if(dcl_raw < 200){
+  } else if(dcl_raw < 50){
     fault = 1;
-  } else if(ccl_raw < 200) {
+  } else if(ccl_raw < 50) {
     fault = 1;
   } else {
     //fault = 0; removed for legality
