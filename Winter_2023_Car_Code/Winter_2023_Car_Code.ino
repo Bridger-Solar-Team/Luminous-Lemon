@@ -21,9 +21,14 @@ int ccl_raw = 0;
 int dcl_raw = 0;
 int ccl_fault = 0;
 int dcl_fault = 0;
+int dcl_fault_max;
+int ccl_fault_max;
 
 bool ccl_last_loop = 0;
 bool dcl_last_loop = 0;
+bool true_ccl_fault;
+bool true_dcl_fault;
+bool true_fault;
 bool brake_pressed = 0;
 bool main_power = 0;
 bool cruise_control = 0;
@@ -137,17 +142,20 @@ void update_display() {
   if(cruise_control) {
     line0 += " CRS"; //13,14,15,16
   }
-  else if(ccl_fault > 1 && ccl_fault > dcl_fault) {
+  else if(true_ccl_fault) {
     line0 += " CCL"; //13, 14, 15, 16
   }
-  else if(dcl_fault > 1 && ccl_fault > dcl_fault) {
+  else if(true_dcl_fault) {
     line0 += " DCL"; //13,14,15,16
   }
-  else if (dcl_fault > 1 || ccl_fault > 1) {
+  else if (true_dcl_fault || true_ccl_fault) {
     line0 += " BTH"; //13,14,15,16
   }
+  else if(true_fault) {
+    line0 += " BPS";
+  }
   else {
-    line0 += "    "; //13,14,15,16
+    line0 += " N/A"; //13,14,15,16
   }
   //End of the top row
 
@@ -323,7 +331,10 @@ void read_inputs() {
     ccl_last_loop = 1;
   }
   
-  if(!ccl_last_loop) {
+  if(!ccl_last_loop && !fault) {
+    if(ccl_fault > ccl_fault_max) {
+      ccl_fault_max = ccl_fault;
+    }
     ccl_fault = 0;
   }
 
@@ -334,7 +345,10 @@ void read_inputs() {
     dcl_last_loop = 1;
   }
 
-  if(!dcl_last_loop){
+  if(!dcl_last_loop && !fault){
+    if(dcl_fault > dcl_fault_max) {
+      dcl_fault_max = dcl_fault;
+    }
     dcl_fault = 0;
   }
 
@@ -346,10 +360,13 @@ void read_inputs() {
 
   if((PortExByte & 0b00001000)!=0b00001000){
     fault = 1;
+    true_fault = 1;
   } else if(dcl_fault > FAULT_LOOP_TOLERANCE){
     fault = 1;
+    true_dcl_fault = 1;
   } else if(ccl_fault > FAULT_LOOP_TOLERANCE) {
     fault = 1;
+    true_ccl_fault = 1;
   } else {
     //fault = 0; removed for legality
   }
