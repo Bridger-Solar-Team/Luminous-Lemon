@@ -19,7 +19,11 @@ float soc = 1;
 int cruise_speed = 0;
 int ccl_raw = 0;
 int dcl_raw = 0;
+int ccl_fault = 0;
+int dcl_fault = 0;
 
+bool ccl_last_loop = 0;
+bool dcl_last_loop = 0;
 bool brake_pressed = 0;
 bool main_power = 0;
 bool cruise_control = 0;
@@ -132,6 +136,15 @@ void update_display() {
   //Cruise control switch. 0 when out, 1 when in
   if(cruise_control) {
     line0 += " CRS"; //13,14,15,16
+  }
+  else if(ccl_fault > 1 && ccl_fault > dcl_fault) {
+    line0 += " CCL"; //13, 14, 15, 16
+  }
+  else if(dcl_fault > 1 && ccl_fault > dcl_fault) {
+    line0 += " DCL"; //13,14,15,16
+  }
+  else if (dcl_fault > 1 || ccl_fault > 1) {
+    line0 += " BTH"; //13,14,15,16
   }
   else {
     line0 += "    "; //13,14,15,16
@@ -305,9 +318,25 @@ void read_inputs() {
 
   //CCL Pin
   ccl_raw = analogRead(A0);
+  if(ccl_raw < CCL_LIMIT) {
+    ccl_fault += 1;
+    ccl_last_loop = 1;
+  }
+  
+  if(!ccl_last_loop) {
+    ccl_fault = 0;
+  }
 
   //DCL Pin
   dcl_raw = analogRead(A1);
+  if(dcl_raw < DCL_LIMIT) {
+    dcl_fault += 1;
+    dcl_last_loop = 1;
+  }
+
+  if(!dcl_last_loop){
+    dcl_fault = 0;
+  }
 
   if((PortExByte & 0b00000010)==0b00000010){
     power_switch = 0;
@@ -317,9 +346,9 @@ void read_inputs() {
 
   if((PortExByte & 0b00001000)!=0b00001000){
     fault = 1;
-  } else if(dcl_raw < 50){
+  } else if(dcl_fault > FAULT_LOOP_TOLERANCE){
     fault = 1;
-  } else if(ccl_raw < 50) {
+  } else if(ccl_fault > FAULT_LOOP_TOLERANCE) {
     fault = 1;
   } else {
     //fault = 0; removed for legality

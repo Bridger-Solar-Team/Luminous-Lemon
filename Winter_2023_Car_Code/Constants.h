@@ -27,3 +27,7 @@
 
 #define WHEEL_CIRCUMFERENCE 66 //inches
 #define PulseNum 16 //Pulses per rotation
+
+#define FAULT_LOOP_TOLERANCE 7
+#define DCL_LIMIT 50
+#define CCL_LIMIT 50
