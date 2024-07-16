@@ -7,7 +7,7 @@
 #include "LCD_Functions.h"
 #include "Lights.h"
 
-bool ENABLE_DEBUGGING = 1;
+bool ENABLE_DEBUGGING = 0;
 
 byte PortExByte;
 
@@ -17,6 +17,8 @@ int digi_pot_val = 0;
 int throttle_percent = 0; 
 float soc = 1;
 int cruise_speed = 0;
+int ccl_raw = 0;
+int dcl_raw = 0;
 
 bool brake_pressed = 0;
 bool main_power = 0;
@@ -301,6 +303,12 @@ void read_inputs() {
   //takes in signal from potentionmeter on steering wheel
   accel_pot_raw = analogRead(ACC_POT_PIN); 
 
+  //CCL Pin
+  ccl_raw = analogRead(A0);
+
+  //DCL Pin
+  dcl_raw = analogRead(A1);
+
   if((PortExByte & 0b00000010)==0b00000010){
     power_switch = 0;
   } else {
@@ -309,9 +317,14 @@ void read_inputs() {
 
   if((PortExByte & 0b00001000)!=0b00001000){
     fault = 1;
+  } else if(dcl_raw < 200){
+    fault = 1;
+  } else if(ccl_raw < 200) {
+    fault = 1;
   } else {
-    fault = 0;
+    //fault = 0; removed for legality
   }
+
   // Reads Main Power switch, and confirms ESTOP value
   if(!power_switch){
     //main power switch
