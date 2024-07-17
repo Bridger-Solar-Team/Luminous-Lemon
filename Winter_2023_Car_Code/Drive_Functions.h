@@ -6,16 +6,16 @@ int calculate_digi_pot(int accel, int dcl_raw) {
   int calculated_digipot = 0;
   calculated_digipot = int(map(accel, ACCEL_MAX_POSITION, ACCEL_ZERO_POSITION, 255, 0));
 
+  //limit the motor power if the BMS wants to limit current
+  calculated_digipot = calculated_digipot*dcl_raw/255.0;
+
   //truncate the value to between 0 and 255
   calculated_digipot = max(calculated_digipot, 0);
   calculated_digipot = min(calculated_digipot, 255);
   if(calculated_digipot <= 6) {
     calculated_digipot = 0;
   }
-
-  //limit the motor power if the BMS wants to limit current
-  calculated_digipot = calculated_digipot*dcl_raw/255.0;
-
+  
   return calculated_digipot;
 }
 

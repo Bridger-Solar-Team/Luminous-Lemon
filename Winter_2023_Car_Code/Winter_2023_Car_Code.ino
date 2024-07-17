@@ -21,8 +21,6 @@ int ccl_raw = 0;
 int dcl_raw = 0;
 int ccl_fault = 0;
 int dcl_fault = 0;
-int dcl_fault_max;
-int ccl_fault_max;
 
 bool estop_raw = 0;
 bool ccl_last_loop = 0;
@@ -341,9 +339,6 @@ void read_inputs() {
   }
   
   if(!ccl_last_loop && !fault) {
-    if(ccl_fault > ccl_fault_max) {
-      ccl_fault_max = ccl_fault;
-    }
     ccl_fault = 0;
   }
 
@@ -355,9 +350,6 @@ void read_inputs() {
   }
 
   if(!dcl_last_loop && !fault){
-    if(dcl_fault > dcl_fault_max) {
-      dcl_fault_max = dcl_fault;
-    }
     dcl_fault = 0;
   }
 
