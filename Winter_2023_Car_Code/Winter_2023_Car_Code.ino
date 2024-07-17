@@ -24,6 +24,7 @@ int dcl_fault = 0;
 int dcl_fault_max;
 int ccl_fault_max;
 
+bool estop_raw = 0;
 bool ccl_last_loop = 0;
 bool dcl_last_loop = 0;
 bool true_ccl_fault;
@@ -125,7 +126,13 @@ void update_display() {
     line0 += "BRAKE!"; //7,8,9,10,11,12
   }
   else {
-    line0 += "MTR"; //7,8,9
+    if(dcl_raw < 255) {
+      line0 += "DCL";
+    } else if(ccl_raw < 255) {
+      line0 += "CCL";
+    } else {
+      line0 += "MTR"; //7,8,9
+    }
     //0-99 motor power as an integer for no decimals
     int motor_power;
     if(cruise_control){
@@ -268,7 +275,9 @@ void debug() {
 void run_lights() {
   flash();
   if(!main_power && light_state) {
-    batt_light_on();
+    if(fault || estop_raw) {
+      batt_light_on();
+    }
     hazard_light_on();
     return;
   }
@@ -371,6 +380,8 @@ void read_inputs() {
     //fault = 0; removed for legality
   }
 
+  estop_raw = !digitalRead(ESTOP_PIN);
+
   // Reads Main Power switch, and confirms ESTOP value
   if(!power_switch){
     //main power switch
@@ -379,7 +390,7 @@ void read_inputs() {
     //bms fault
     main_power = 0;
   }
-  else if(digitalRead(ESTOP_PIN)) {
+  else if(!estop_raw) {
     main_power = 1;
   }
   else {
@@ -429,7 +440,7 @@ void move_car() {
     digitalWrite(CONTACTOR_OUT, LOW);
   }
 
-  digi_pot_val = calculate_digi_pot(accel_pot_raw);
+  digi_pot_val = calculate_digi_pot(accel_pot_raw, dcl_raw);
   if(cruise_control) {
     if(brake_pressed){
       cruise_control = false;

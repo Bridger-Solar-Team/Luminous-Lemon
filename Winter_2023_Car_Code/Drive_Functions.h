@@ -1,4 +1,4 @@
-int calculate_digi_pot(int accel) {
+int calculate_digi_pot(int accel, int dcl_raw) {
   //converts the acceleration potentionmeter value (between 475 and 875) to a 0-255 range for SPI, and flips it because of the potentiometer mounting
   if(accel < 50) {
     accel = ACCEL_ZERO_POSITION;
@@ -12,6 +12,9 @@ int calculate_digi_pot(int accel) {
   if(calculated_digipot <= 6) {
     calculated_digipot = 0;
   }
+
+  //limit the motor power if the BMS wants to limit current
+  calculated_digipot = calculated_digipot*dcl_raw/255.0;
 
   return calculated_digipot;
 }
